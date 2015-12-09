@@ -7,6 +7,13 @@ compiler: clang
 os: linux
 sudo: false
 
+
+# Use ccache to cache compilation results. This provides a speedup of about 2x.
+cache:
+  directories:
+    - ${HOME}/.ccache
+
+
 # Do not build branches of the form "pr/*". By prefixing pull requests coming
 # from branches inside the repository with pr/, this avoids building both the
 # branch push _and_ the pull request.
@@ -282,6 +289,12 @@ install:
   ############################################################################
   - if [[ "${CHECK_FORMATTING}" == "true" ]]; then brew install vera++; fi
 
+  ############################################################################
+  # Install ccache (only needed on OS X, because already installed on Linux)
+  ############################################################################
+  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then brew install ccache; fi
+  - ccache --max-size=5G
+
 
 before_script:
   ############################################################################
@@ -293,7 +306,11 @@ before_script:
   # Go back to the root of the project and setup the build directory
   ############################################################################
   - cd ${TRAVIS_BUILD_DIR}
-  - (mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER=${COMPILER} -DBOOST_HANA_ENABLE_WERROR=ON ${CMAKE_OPTIONS})
+  # We don't use direct mode, because we want a file to be recompiled when its
+  # dependencies change (e.g. between two versions of the Boost headers).
+  - export CCACHE_DIRECT=false
+  - export CXX="ccache ${COMPILER}"
+  - (mkdir build && cd build && cmake .. -DBOOST_HANA_ENABLE_WERROR=ON ${CMAKE_OPTIONS})
 
 
 script:
@@ -391,6 +408,10 @@ script:
         (cd test && b2 toolset=clang cxxflags="-std=c++1y ${CXXFLAGS}" linkflags="${LDFLAGS}" include="${DEPS_DIR}/boost")
       fi
     fi
+
+
+after_script:
+  - ccache --show-stats
 
 
 notifications:

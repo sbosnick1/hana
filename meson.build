@@ -8,4 +8,6 @@ if not meson.is_subproject()
     error('The meson support for boost hana is designed for hana as a subproject')
 endif
 
-hana = declare_dependency(include_directories: 'include')
+inc = include_directories('include')
+
+hana = declare_dependency(include_directories: inc)
